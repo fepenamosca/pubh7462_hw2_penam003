@@ -1,0 +1,237 @@
+---
+title: "Homewok 2"
+author: "Felipe Pena Mosca"
+date: "2/10/2022"
+output: github_document
+---
+
+```{r setup, include = FALSE,warning=FALSE}
+#Load packages
+
+library(tidyverse)
+
+#Working directory for .RMD
+
+knitr::opts_knit$set(echo = TRUE,
+                     root.dir = rprojroot::find_rstudio_root_file())
+
+#Controlling figure output in markdown
+
+knitr::opts_chunk$set(
+#  fig.height =   
+  fig.width = 6,
+#  fig.asp = .5,
+  out.width = "90%",
+#  out.height = 
+ fig.align = "center",
+  cache = FALSE,
+  echo  = TRUE
+)
+
+#Set Theme for ggplot2 - centers title and legend at bottom by default
+
+theme_set(theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom"))
+
+#Set Scientific notation output and decimal places for knitr
+
+options(scipen = 999)
+options(digits = 4)
+
+```
+
+```{r Load data and packages, echo = FALSE,warning = FALSE}
+
+df  <- read.csv("./data/brfss_smart_2010.csv")
+
+library(tidyverse)
+library(DataExplorer)
+
+```
+
+
+```{r Data Exploration & Cleaning,include = FALSE,warning = FALSE}
+
+# Exploratory data analysis
+
+# Get introduced to dataset
+introduce(df)
+
+# Visualization to get introduced to dataset
+plot_intro(df)
+
+# Structure of dataset 
+plot_str(df)
+
+# Missing observations in dataset by variables
+plot_missing(df)
+
+# Visualize frequency distributions for all categorical variables
+plot_bar(df) 
+
+# Visualize frequency distributions for all continuous variables
+plot_histogram(df)
+
+# ‘Tidying’ up variable names
+
+df_cn <- janitor::clean_names(df)
+
+# Retaining only the Overall Health topic
+
+df_cn_2 <- df_cn %>%
+          filter("Overall Health" %in% topic)
+
+#Retain only the year, state, county, response, sample size, and prop. of responses (data_value)
+
+df_cn_3 <- df_cn_2 %>%
+  select("year","locationabbr","locationdesc","response","sample_size","data_value")
+
+# Renaming key variables as appropriate to ensure they are informative
+
+df_cn_4 <- df_cn_3 %>%
+  rename(state = locationabbr,county = locationdesc,prop_responses = data_value)
+
+# Check structure of data
+
+str(df_cn_4)
+
+# Transforming numerics characters or strings to factors where it’s appropriate
+
+df_cn_4$year <- as.factor(df_cn_4$year)
+df_cn_4$state <- as.factor(df_cn_4$state)
+df_cn_4$county <- as.factor(df_cn_4$county)
+df_cn_4$response <- as.factor(df_cn_4$response)
+
+```
+
+-- 3.2 Data Description (10pts) --
+
+Please describe these data using inline r, including but not limited to:
+
+The BRFSS questionnaire is designed by a working group of BRFSS state coordinators and CDC staff. The questionnaire is approved by all state coordinators. Questionnaire participant is selected randomly and contacted through telephone.
+
+This dataset includes 134203 observations and 23 variables.
+  
+Each observation corresponds to a telephone questionnaire including the following variables:
+
+- Year : year that questionnaire took place.
+
+- Locationabbr : state that participant is living.
+
+- Locationdesc : county that participant is living.
+
+- Class: type of question.
+
+- Topic: specific topic of question.
+
+- Question: question asked by interviewer.
+
+- Response: answer provided by participant.
+
+- Sample size: number of participants with that answer.
+
+- Data value: proportion of participants with that answer.
+
+- Confidence limit low: lower limit 95 % confidence interval.
+
+- Confidence limit high: upper limit 95 % confidence interval.
+
+- Display order: order in which question was asked to participant.
+
+- Data value unit: unit in which data value was presented.
+
+- Data value type: type of variable that represented data value.
+
+- Data value footnote symbol:fFootnote symbol (if present).
+
+- Data value footnote: comments regarding footnote symbol.
+
+- DataSource: variable indicating source of data. In this case Behavioral Risk Factors Surveillance System
+
+- Class-Id: id code for class of question.
+
+- Topic-Id: id code for specific topic of question.
+
+- Location-Id: if code for location.
+
+- Resp-Id: if code for participant.
+
+- Geo Location: geographic location (latitude and longitude)
+
+```{r Do Data Science 3.3.1 & 3.3.2,echo = TRUE, warning = FALSE }
+
+#3.3 Do Data Science (50pts)
+
+# 3.3.1 In the year 2004, which states were observed at 6 locations? (10pts)
+
+df_cn_4 %>%
+  group_by(state,year) %>%
+      filter("2004" %in% year) %>%
+        summarise(observed.more.than.6 = n_distinct(county)>6, 
+                  n.locations = n_distinct(county)) %>%
+                    filter(TRUE %in% observed.more.than.6) %>%
+                      select("state","n.locations")
+            
+# 3.3.2 Make a “spaghetti plot” that shows the number of observed locations in each state from 2002 to 2010. Which state has the highest mean number of locations over this period? (10pts)
+
+# States in legend were ordered by mean number of locations
+
+df_cn_4 %>%
+  group_by(state,year) %>%
+  summarise(count = n_distinct(county)) %>%
+ggplot(aes(x = year,y = count,group = state,color = fct_reorder(state, count, mean,.desc=TRUE))) +
+  geom_line() + 
+  labs(title = "Number observed locations per state by year",
+       x = "Year",
+       y = "Number observed locations",
+       color = "State") +
+        scale_fill_brewer(palette = "viridis")
+
+```
+
+New Jersey had the highest mean number of locations over this period (Note: states were ordered by mean number of locations (descending order) during the studied period).
+
+
+```{r Do Data Science 3.3.3 & 3.3.4,echo = TRUE, warning = FALSE }
+
+
+        
+# 3.3.3 Make a table showing, for the years 2002, 2006, and 2010, the mean and standard deviation of sample size and proportion of Excellent, Good, and Poor responses across locations in MN. (15pts)
+
+df_cn_4 %>%
+  filter(year %in% c("2002","2006","2010"),
+         state %in% "MN", 
+         response %in% c("Excellent","Good","Poor")) %>%
+          group_by(year,response) %>%
+            summarise(n_mean = mean(sample_size),
+                n_sd = sd(sample_size),mean_prop_responses = mean(prop_responses),
+                sd_prop_reponses = sd(prop_responses)) %>%
+                  knitr::kable(caption = "")
+                    
+      
+# Create a ggplot that communicates the results/trends from the table above and stands on its own (15pts) 
+
+  df_cn_4 %>%
+  filter(year %in% c("2002","2006","2010"),
+         state %in% "MN",
+         response %in% c("Excellent","Good","Poor")) %>%
+          group_by(year,response) %>%
+            summarise(n_mean=mean(sample_size),
+                      n_sd = sd(sample_size),
+                      mean_prop_responses = mean(prop_responses),
+                      sd_prop_responses = sd(prop_responses)) %>%
+                        ggplot(aes(x = year , 
+                                   y = mean_prop_responses,
+                                   groups = year,
+                                   fill = response)) +
+                                    geom_bar(position = "dodge",
+                                             stat = "identity") +
+                                              ylab("Proportion (%)") + 
+                                                labs(fill = "Response", 
+                                                     title = " Mean response by year in Minnesota",
+                                                     x = "Year",
+                                                     y = "Mean response (%)") + 
+                                                      scale_fill_brewer(palette = "viridis")
+  
+```
+
+Our exploratory analysis suggest that the proportion of responders with excellent, good or poor overall health does not substantially change over the studied years (2002, 2006 and 2010) across locations in Minnesota.
