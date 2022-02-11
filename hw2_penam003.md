@@ -144,7 +144,7 @@ df_cn_4 %>%
 | 2010 | Poor      |  27.40 |  27.319 |                2.36 |           0.7701 |
 
 ``` r
-# Create a ggplot that communicates the results/trends from the table above and stands on its own (15pts) 
+# 3.3.4 Create a ggplot that communicates the results/trends from the table above and stands on its own (15pts) 
 
   df_cn_4 %>%
   filter(year %in% c("2002","2006","2010"),
